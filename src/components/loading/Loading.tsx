@@ -12,7 +12,7 @@ const Loading = () => {
         height={200}
         priority={true}
         alt="Loading..."
-        className={styles.loadingIcon}
+        className={`${styles.loadingIcon}`}
       />
     </div>
   );

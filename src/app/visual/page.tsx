@@ -43,9 +43,9 @@ export default function VisualizationPage() {
     [key: string]: string | React.ReactNode;
   }
   const severityColors: severityType = {
-    HIGH: "bg-[#F7C3C7] text-[#C9001E]",
-    MEDIUM: "bg-[#FEE6C3] text-[#F69C00]",
-    LOW: "bg-[#D0D6E7] text-[#1E2B53]",
+    HIGH: "bg-[#C9001E]/20 text-[#C9001E] border-[#C9001E]/50",
+    MEDIUM: "bg-[#F69C00]/20 text-[#F69C00] border-[#F69C00]/50",
+    LOW: "bg-[#1E2B53]/20 text-[#1E2B53] border-[#1E2B53]/50",
   };
 
   const severityIcons: severityType = {
@@ -83,25 +83,27 @@ export default function VisualizationPage() {
   return (
     <div className="container mx-auto p-4">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-28 md:mb-8">
-        <Card className={"bg-[#93AFC9]  rounded-t-lg"}>
+        <Card className="bg-primary/20 rounded-t-lg border-primary/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-lg font-medium capitalize">
+            <CardTitle className="text-lg font-medium capitalize text-foreground">
               TOTAL
             </CardTitle>
             <ShieldAlert
               size={30}
               strokeWidth={2.75}
-              className="bg-[#93AFC9]"
+              className="text-primary"
             />
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
-            <div className="text-2xl font-bold">{totalErrors}</div>
+            <div className="text-2xl font-bold text-foreground">
+              {totalErrors}
+            </div>
           </CardContent>
         </Card>
         {Object.entries(severityCounts).map(([severity, count]) => (
           <Card
             key={severity}
-            className={`${severityColors[severity]} rounded-t-lg`}
+            className={`${severityColors[severity]} rounded-t-lg border`}
           >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-lg font-medium capitalize">
@@ -118,7 +120,7 @@ export default function VisualizationPage() {
 
       <div className="grid md:grid-cols-9 lg:grid-cols-9 grid-cols-1 gap-3">
         <Tabs defaultValue="areachart" className="space-y-4 col-span-5 h-full">
-          <TabsList className="border border-slate-800">
+          <TabsList className="border border-border">
             <TabsTrigger value="areachart">Area Chart</TabsTrigger>
             <TabsTrigger value="severitychart">Severity Chart</TabsTrigger>
           </TabsList>
@@ -162,16 +164,14 @@ export default function VisualizationPage() {
                           <span className="col-span-2">
                             {severityIcons[highestSeverity]}
                           </span>
-                          <span className="md:text-2xl text-xl col-span-10 md:col-span-8">
+                          <span className="md:text-2xl text-xl col-span-10 md:col-span-8 text-foreground">
                             {owasp}
                           </span>
-                          {/* {vulns.length > 1 && ( */}
                           <span className="col-span-2">
-                            <Badge className="text-sm" variant={"secondary"}>
+                            <Badge className="text-sm" variant="secondary">
                               {vulns.length}
                             </Badge>
                           </span>
-                          {/* )} */}
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="flex-grow">
@@ -179,7 +179,7 @@ export default function VisualizationPage() {
                           {vulns[0].extra.metadata.cwe[0]}
                         </p>
                         <Button
-                          className="w-50 bg-slate-500 hover:bg-slate-600 place-items-end"
+                          className="w-50 bg-primary hover:bg-primary/90"
                           onClick={() => setSelectedVulnerability(vulns)}
                         >
                           View Details
@@ -194,12 +194,12 @@ export default function VisualizationPage() {
         </div>
       </div>
       {selectedVulnerability && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center md:p-4">
-          <Card className="w-full max-w-2xl md:h-[80vh] h-screen flex flex-col bg-slate-100">
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center md:p-4">
+          <Card className="w-full max-w-2xl md:h-[80vh] h-screen flex flex-col bg-card">
             <CardHeader>
-              <CardTitle className="flex justify-between items-center">
+              <CardTitle className="flex justify-between items-center text-foreground">
                 <span>{selectedVulnerability[0].extra.metadata.owasp[0]}</span>
-                <span className="text-sm font-normal text-nowrap">
+                <span className="text-sm font-normal text-muted-foreground text-nowrap">
                   {selectedVulnerability.length > 1 &&
                     `${currentPage} of ${totalPages}`}
                 </span>
@@ -215,15 +215,15 @@ export default function VisualizationPage() {
                   return (
                     <div
                       key={index}
-                      className="mb-6 pb-6 border-b last:border-b-0"
+                      className="mb-6 pb-6 border-b border-border last:border-b-0"
                     >
-                      <h2 className="text-lg font-bold text-slate-500 mb-2">
+                      <h2 className="text-lg font-bold text-muted-foreground mb-2">
                         Description
                       </h2>
-                      <p className="mb-4 text-white bg-slate-500 p-2">
+                      <p className="mb-4 text-foreground bg-muted p-2 rounded-md">
                         {vuln.extra.message}
                       </p>
-                      <p className="mb-2">
+                      <p className="mb-2 text-foreground">
                         <strong>Severity:</strong>{" "}
                         {vuln.extra.severity === "ERROR"
                           ? "HIGH"
@@ -231,34 +231,34 @@ export default function VisualizationPage() {
                           ? "MEDIUM"
                           : "LOW"}
                       </p>
-                      <p className="mb-2">
+                      <p className="mb-2 text-foreground">
                         <strong>CWE:</strong>{" "}
                         {vuln.extra.metadata.cwe.join(", ")}
                       </p>
-                      <p className="mb-2">
+                      <p className="mb-2 text-foreground">
                         <strong>Check ID:</strong> {vuln.check_id}
                       </p>
                       <span className="mb-2">
-                        <h2 className="text-lg font-bold text-slate-500 mb-2">
+                        <h2 className="text-lg font-bold text-muted-foreground mb-2">
                           Location
                         </h2>
-                        <p>
+                        <p className="text-foreground">
                           {" "}
                           <strong>path:</strong> {vuln.path}
                         </p>
-                        <p>
+                        <p className="text-foreground">
                           {" "}
                           <strong>From:</strong> Column {vuln.start.col}, Line{" "}
                           {vuln.start.line}
                         </p>
-                        <p>
+                        <p className="text-foreground">
                           {" "}
                           <strong>To:</strong> Column {vuln.end.col}, Line{" "}
                           {vuln.end.line}
                         </p>
                       </span>
                       <span className="mb-2">
-                        <h2 className="text-lg font-bold text-slate-500 mb-2 mt-4">
+                        <h2 className="text-lg font-bold text-muted-foreground mb-2 mt-4">
                           Mitigation
                         </h2>
                         <div className="flex flex-col gap-1">
@@ -268,7 +268,7 @@ export default function VisualizationPage() {
                                 href={ref}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-gray-800 hover:underline"
+                                className="text-primary hover:underline"
                                 key={ref}
                               >
                                 {ref}
@@ -284,7 +284,7 @@ export default function VisualizationPage() {
             <div className="p-4 pt-0 flex justify-between items-center">
               {selectedVulnerability.length > 1 && (
                 <Button
-                  variant={"ghost"}
+                  variant="ghost"
                   onClick={handlePrevPage}
                   disabled={currentPage === 1}
                 >
@@ -297,13 +297,13 @@ export default function VisualizationPage() {
                   setCurrentPage(1);
                   setSelectedVulnerability(null);
                 }}
-                className="w-1/3 mx-auto bg-slate-500 hover:bg-slate-600"
+                className="w-1/3 mx-auto bg-primary hover:bg-primary/90"
               >
                 Done
               </Button>
               {selectedVulnerability.length > 1 && (
                 <Button
-                  variant={"ghost"}
+                  variant="ghost"
                   onClick={handleNextPage}
                   disabled={currentPage === totalPages}
                 >

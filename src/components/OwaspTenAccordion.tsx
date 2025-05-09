@@ -4,14 +4,22 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import {owaspTen} from "@/data/owasp-ten";
+import { owaspTen } from "@/data/owasp-ten";
 
 export function OwaspTenAccordion() {
   const renderedList = owaspTen.map((item) => {
     return (
-      <AccordionItem value={`item-${item.id}`} key={item.id}>
-        <AccordionTrigger>{item.title}</AccordionTrigger>
-        <AccordionContent>{item.description}</AccordionContent>
+      <AccordionItem
+        value={`item-${item.id}`}
+        key={item.id}
+        className="border-border"
+      >
+        <AccordionTrigger className="text-foreground hover:text-primary">
+          {item.title}
+        </AccordionTrigger>
+        <AccordionContent className="text-muted-foreground">
+          {item.description}
+        </AccordionContent>
       </AccordionItem>
     );
   });
