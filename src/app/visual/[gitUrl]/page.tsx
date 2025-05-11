@@ -12,19 +12,107 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import vulnerabilityData from "@/data/j2.json";
 import { OwaspAreaChart } from "@/components/charts/OwaspAreaChart";
 import { OwaspPieChart } from "@/components/charts/OwaspPieChart";
 import { Badge } from "@/components/ui/badge";
 import AllGood from "@/components/AllGood";
+import { useAnalyze } from "@/hooks/useAnalyze";
+import { LoadingMessages } from "@/components/LoadingMessages";
 
-export default function VisualizationPage() {
-  const [selectedVulnerability, setSelectedVulnerability] = useState<any>(null);
+interface PageProps {
+  params: {
+    gitUrl: string;
+  };
+}
+
+interface VulnerabilityResult {
+  check_id: string;
+  path: string;
+  start: { col: number; line: number };
+  end: { col: number; line: number };
+  extra: {
+    message: string;
+    severity: "ERROR" | "WARNING" | "INFO";
+    lines?: string;
+    metadata: {
+      owasp?: string[];
+      references?: string[];
+    };
+  };
+}
+
+interface AnalysisResponse {
+  vulnerabilities: {
+    results: VulnerabilityResult[];
+    paths: {
+      scanned: string[];
+      skipped: string[];
+    };
+  };
+}
+
+interface GroupedVulnerability {
+  count: number;
+  items: VulnerabilityResult[];
+  severity: "HIGH" | "MEDIUM" | "LOW";
+}
+
+export default function VisualizationPage({ params }: PageProps) {
+  const [selectedVulnerability, setSelectedVulnerability] = useState<
+    VulnerabilityResult[] | null
+  >(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 1;
 
-  const severityCounts = vulnerabilityData.vulnerabilities.results.reduce(
-    (acc, vuln: any) => {
+  const decodedGitUrl = decodeURIComponent(params.gitUrl);
+
+  const { data, isLoading, error } = useAnalyze().useQuery({
+    gitUrl: decodedGitUrl,
+    ruleSet: "owasp",
+  });
+
+  if (isLoading) {
+    return <LoadingMessages />;
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto p-4 h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="text-2xl font-bold text-destructive">
+            Analysis failed
+          </div>
+          <div className="text-muted-foreground">Please try again later</div>
+        </div>
+      </div>
+    );
+  }
+
+  const analysisData = data as AnalysisResponse;
+
+  if (!analysisData?.vulnerabilities?.results?.length) {
+    return (
+      <div className="container mx-auto p-4 h-screen flex items-center justify-center">
+        <AllGood />
+      </div>
+    );
+  }
+
+  // Group vulnerabilities by check_id and calculate severity counts
+  const groupedByCheckId = analysisData.vulnerabilities.results.reduce(
+    (acc: Record<string, VulnerabilityResult[]>, vuln) => {
+      const checkId = vuln.check_id;
+      if (!acc[checkId]) {
+        acc[checkId] = [];
+      }
+      acc[checkId].push(vuln);
+      return acc;
+    },
+    {}
+  );
+
+  const severityCounts = analysisData.vulnerabilities.results.reduce(
+    (acc: Record<string, number>, vuln) => {
       const severity =
         vuln.extra.severity === "ERROR"
           ? "HIGH"
@@ -37,11 +125,12 @@ export default function VisualizationPage() {
     { HIGH: 0, MEDIUM: 0, LOW: 0 }
   );
 
-  const totalErrors = vulnerabilityData.vulnerabilities.results.length;
+  const totalVulnerabilities = analysisData.vulnerabilities.results.length;
 
   interface severityType {
     [key: string]: string | React.ReactNode;
   }
+
   const severityColors: severityType = {
     HIGH: "bg-[#C9001E]/20 text-[#C9001E] border-[#C9001E]/50",
     MEDIUM: "bg-[#F69C00]/20 text-[#F69C00] border-[#F69C00]/50",
@@ -57,16 +146,6 @@ export default function VisualizationPage() {
     ),
     LOW: <Ban className="text-[#1E2B53]" size={30} strokeWidth={2.75} />,
   };
-
-  const groupedVulnerabilities =
-    vulnerabilityData.vulnerabilities.results.reduce((acc: any, vuln: any) => {
-      const owasp = vuln.extra.metadata.owasp[0];
-      if (!acc[owasp]) {
-        acc[owasp] = [];
-      }
-      acc[owasp].push(vuln);
-      return acc;
-    }, {});
 
   const totalPages = selectedVulnerability
     ? Math.ceil(selectedVulnerability.length / itemsPerPage)
@@ -96,7 +175,7 @@ export default function VisualizationPage() {
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             <div className="text-2xl font-bold text-foreground">
-              {totalErrors}
+              {totalVulnerabilities}
             </div>
           </CardContent>
         </Card>
@@ -126,79 +205,75 @@ export default function VisualizationPage() {
           </TabsList>
 
           <TabsContent value="areachart">
-            {/* <OwaspAreaChart /> */}
+            <OwaspAreaChart data={analysisData} />
           </TabsContent>
 
           <TabsContent value="severitychart">
-            {/* <OwaspPieChart /> */}
+            <OwaspPieChart data={severityCounts} />
           </TabsContent>
         </Tabs>
-        <div className="grid grid-cols-1 col-span-4 gap-4">
-          {Object.entries(groupedVulnerabilities).length < 1 ? (
-            <AllGood />
-          ) : (
-            Object.entries(groupedVulnerabilities).map(
-              ([owasp, vulns]: any) => {
-                const highestSeverity = vulns.reduce(
-                  (acc: string, vuln: { extra: { severity: string } }) => {
-                    const severity =
-                      vuln.extra.severity === "ERROR"
-                        ? "HIGH"
-                        : vuln.extra.severity === "WARNING"
-                        ? "MEDIUM"
-                        : "LOW";
-                    return severity === "HIGH"
-                      ? "HIGH"
-                      : severity === "MEDIUM" && acc !== "HIGH"
-                      ? "MEDIUM"
-                      : acc;
-                  },
-                  "LOW"
-                );
 
-                return (
-                  <Card key={owasp} className="flex item-center">
-                    <div className="flex flex-col">
-                      <CardHeader>
-                        <CardTitle className="grid grid-cols-12 gap-2">
-                          <span className="col-span-2">
-                            {severityIcons[highestSeverity]}
-                          </span>
-                          <span className="md:text-2xl text-xl col-span-10 md:col-span-8 text-foreground">
-                            {owasp}
-                          </span>
-                          <span className="col-span-2">
-                            <Badge className="text-sm" variant="secondary">
-                              {vulns.length}
-                            </Badge>
-                          </span>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="flex-grow">
-                        <p className="mb-2 text-primary/90">
-                          {vulns[0].extra.metadata.cwe[0]}
-                        </p>
-                        <Button
-                          className="w-50 bg-primary hover:bg-primary/90"
-                          onClick={() => setSelectedVulnerability(vulns)}
-                        >
-                          View Details
-                        </Button>
-                      </CardContent>
-                    </div>
-                  </Card>
-                );
-              }
-            )
-          )}
+        <div className="grid grid-cols-1 col-span-4 gap-4">
+          {Object.entries(groupedByCheckId).map(([checkId, vulns]) => {
+            const highestSeverity = vulns.reduce(
+              (acc: string, vuln: VulnerabilityResult) => {
+                const severity =
+                  vuln.extra.severity === "ERROR"
+                    ? "HIGH"
+                    : vuln.extra.severity === "WARNING"
+                    ? "MEDIUM"
+                    : "LOW";
+                return severity === "HIGH"
+                  ? "HIGH"
+                  : severity === "MEDIUM" && acc !== "HIGH"
+                  ? "MEDIUM"
+                  : acc;
+              },
+              "LOW"
+            );
+
+            return (
+              <Card key={checkId} className="flex item-center h-fit">
+                <div className="flex flex-col">
+                  <CardHeader>
+                    <CardTitle className="grid grid-cols-12 gap-2">
+                      <span className="col-span-2">
+                        {severityIcons[highestSeverity]}
+                      </span>
+                      <span className="md:text-xl text-lg col-span-10 md:col-span-8 text-foreground break-all">
+                        {checkId}
+                      </span>
+                      <span className="col-span-2">
+                        <Badge className="text-sm" variant="secondary">
+                          {vulns.length}
+                        </Badge>
+                      </span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex-grow">
+                    <p className="mb-2 text-primary/90 text-sm">
+                      {vulns[0].extra.message}
+                    </p>
+                    <Button
+                      className="w-50 bg-primary hover:bg-primary/90"
+                      onClick={() => setSelectedVulnerability(vulns)}
+                    >
+                      View Details
+                    </Button>
+                  </CardContent>
+                </div>
+              </Card>
+            );
+          })}
         </div>
       </div>
+
       {selectedVulnerability && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center md:p-4">
           <Card className="w-full max-w-2xl md:h-[80vh] h-screen flex flex-col bg-card">
             <CardHeader>
               <CardTitle className="flex justify-between items-center text-foreground">
-                <span>{selectedVulnerability[0].extra.metadata.owasp[0]}</span>
+                <span>{selectedVulnerability[0].check_id}</span>
                 <span className="text-sm font-normal text-muted-foreground text-nowrap">
                   {selectedVulnerability.length > 1 &&
                     `${currentPage} of ${totalPages}`}
@@ -211,7 +286,7 @@ export default function VisualizationPage() {
                   (currentPage - 1) * itemsPerPage,
                   currentPage * itemsPerPage
                 )
-                .map((vuln: any, index: Key | null | undefined) => {
+                .map((vuln: VulnerabilityResult, index: number) => {
                   return (
                     <div
                       key={index}
@@ -232,10 +307,6 @@ export default function VisualizationPage() {
                           : "LOW"}
                       </p>
                       <p className="mb-2 text-foreground">
-                        <strong>CWE:</strong>{" "}
-                        {vuln.extra.metadata.cwe.join(", ")}
-                      </p>
-                      <p className="mb-2 text-foreground">
                         <strong>Check ID:</strong> {vuln.check_id}
                       </p>
                       <span className="mb-2">
@@ -243,39 +314,22 @@ export default function VisualizationPage() {
                           Location
                         </h2>
                         <p className="text-foreground">
-                          {" "}
-                          <strong>path:</strong> {vuln.path}
+                          <strong>File:</strong> {vuln.path}
                         </p>
                         <p className="text-foreground">
-                          {" "}
-                          <strong>From:</strong> Column {vuln.start.col}, Line{" "}
-                          {vuln.start.line}
-                        </p>
-                        <p className="text-foreground">
-                          {" "}
-                          <strong>To:</strong> Column {vuln.end.col}, Line{" "}
+                          <strong>Line:</strong> {vuln.start.line}-
                           {vuln.end.line}
                         </p>
-                      </span>
-                      <span className="mb-2">
-                        <h2 className="text-lg font-bold text-muted-foreground mb-2 mt-4">
-                          Mitigation
-                        </h2>
-                        <div className="flex flex-col gap-1">
-                          {selectedVulnerability[0].extra.metadata.references.map(
-                            (ref: string) => (
-                              <a
-                                href={ref}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-primary hover:underline"
-                                key={ref}
-                              >
-                                {ref}
-                              </a>
-                            )
-                          )}
-                        </div>
+                        {vuln.extra.lines && (
+                          <div className="mt-2">
+                            <p className="text-foreground">
+                              <strong>Code:</strong>
+                            </p>
+                            <pre className="p-2 bg-muted rounded-md mt-1 text-sm overflow-x-auto">
+                              {vuln.extra.lines}
+                            </pre>
+                          </div>
+                        )}
                       </span>
                     </div>
                   );

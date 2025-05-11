@@ -1,125 +1,145 @@
 "use client";
 
-import { Asterisk } from "lucide-react";
-import { Area, AreaChart, CartesianGrid, XAxis } from "recharts";
-
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ChartContainer } from "@/components/ui/chart";
 import {
-  ChartConfig,
-  ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
+  Area,
+  AreaChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
-const chartData = [
-  { category: "A01", High: 5, Medium: 3, Low: 2 },
-  { category: "A02", High: 2, Medium: 4, Low: 3 },
-  { category: "A03", High: 4, Medium: 2, Low: 1 },
-  { category: "A04", High: 3, Medium: 0, Low: 1 },
-  { category: "A05", High: 7, Medium: 4, Low: 2 },
-  { category: "A06", High: 4, Medium: 8, Low: 5 },
-  { category: "A07", High: 3, Medium: 9, Low: 1 },
-  { category: "A08", High: 5, Medium: 7, Low: 4 },
-  { category: "A09", High: 0, Medium: 1, Low: 2 },
-  { category: "A10", High: 0, Medium: 9, Low: 8 },
-];
+interface AnalysisResponse {
+  vulnerabilities: {
+    results: Array<{
+      path: string;
+      extra: {
+        severity: "ERROR" | "WARNING" | "INFO";
+      };
+    }>;
+    paths: {
+      scanned: string[];
+    };
+  };
+}
+
+interface Props {
+  data: AnalysisResponse;
+}
 
 const chartConfig = {
-  High: {
+  HIGH: {
+    color: "#C9001E",
     label: "High",
-    color: "hsl(var(--chart-1))",
   },
-  Medium: {
+  MEDIUM: {
+    color: "#F69C00",
     label: "Medium",
-    color: "hsl(var(--chart-2))",
   },
-  Low: {
+  LOW: {
+    color: "#1E2B53",
     label: "Low",
-    color: "hsl(var(--chart-3))",
   },
-} satisfies ChartConfig;
+};
 
-export function OwaspAreaChart() {
+export function OwaspAreaChart({ data }: Props) {
+  // Group vulnerabilities by file
+  const groupedByFile = data.vulnerabilities.results.reduce(
+    (acc: Record<string, Record<string, number>>, vuln) => {
+      const file = vuln.path.split("/").pop() || vuln.path;
+      const severity =
+        vuln.extra.severity === "ERROR"
+          ? "HIGH"
+          : vuln.extra.severity === "WARNING"
+          ? "MEDIUM"
+          : "LOW";
+
+      if (!acc[file]) {
+        acc[file] = { HIGH: 0, MEDIUM: 0, LOW: 0 };
+      }
+
+      acc[file][severity]++;
+      return acc;
+    },
+    {}
+  );
+
+  // Convert to chart data format
+  const chartData = Object.entries(groupedByFile).map(([file, counts]) => ({
+    name: file,
+    ...counts,
+  }));
+
   return (
-    <Card className="">
-      <CardHeader>
-        <CardTitle>Vulnerability Severity Trend</CardTitle>
+    <Card>
+      <CardHeader className="flex flex-col items-center pb-2">
+        <CardTitle>Vulnerability Distribution by File</CardTitle>
         <CardDescription>
-          Showing Vulnerability severity trends by Owasp top 10
+          Number of vulnerabilities per file by severity
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig}>
-          <AreaChart
-            accessibilityLayer
-            data={chartData}
-            margin={{
-              left: 12,
-              right: 12,
-            }}
-          >
-            <CartesianGrid vertical={false} />
-            <XAxis
-              dataKey="category"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              tickFormatter={(value) => value.slice(0)}
-            />
-            <ChartTooltip
-              cursor={false}
-              content={<ChartTooltipContent indicator="dot" />}
-            />
-            <Area
-              dataKey="High"
-              type="natural"
-              fill="#C9001E"
-              fillOpacity={0.3}
-              stroke="#C9001E"
-              stackId="a"
-            />
-            <Area
-              dataKey="Medium"
-              type="natural"
-              fill="#F69C00"
-              fillOpacity={0.3}
-              stroke="#F69C00"
-              stackId="a"
-            />
-            <Area
-              dataKey="Low"
-              type="natural"
-              fill="#1E2B53"
-              fillOpacity={0.3}
-              stroke="#1E2B53"
-              stackId="a"
-            />
-            <ChartLegend content={<ChartLegendContent />} />
-          </AreaChart>
+        <ChartContainer config={chartConfig} className="w-full aspect-[4/3]">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart
+              data={chartData}
+              margin={{
+                top: 10,
+                right: 10,
+                left: 10,
+                bottom: 15,
+              }}
+            >
+              <XAxis
+                dataKey="name"
+                stroke="#888888"
+                fontSize={12}
+                angle={-45}
+                textAnchor="end"
+                height={60}
+              />
+              <YAxis
+                stroke="#888888"
+                fontSize={12}
+                tickFormatter={(value) => `${value}`}
+              />
+              <Tooltip />
+              <Area
+                type="monotone"
+                dataKey="HIGH"
+                stackId="1"
+                stroke={chartConfig.HIGH.color}
+                fill={chartConfig.HIGH.color}
+                fillOpacity={0.2}
+              />
+              <Area
+                type="monotone"
+                dataKey="MEDIUM"
+                stackId="1"
+                stroke={chartConfig.MEDIUM.color}
+                fill={chartConfig.MEDIUM.color}
+                fillOpacity={0.2}
+              />
+              <Area
+                type="monotone"
+                dataKey="LOW"
+                stackId="1"
+                stroke={chartConfig.LOW.color}
+                fill={chartConfig.LOW.color}
+                fillOpacity={0.2}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
         </ChartContainer>
       </CardContent>
-      <CardFooter>
-        <div className="flex w-full items-start gap-2 text-sm">
-          <div className="grid gap-2">
-            <div className="flex items-center gap-2 font-medium leading-none">
-              {/* Vulnerabilities are abbreviated */}
-              {/* <Asterisk className="h-4 w-4" /> */}
-            </div>
-            <div className="flex items-center gap-2 leading-none text-muted-foreground">
-              {/* January - June 2024 */}
-            </div>
-          </div>
-        </div>
-      </CardFooter>
     </Card>
   );
 }

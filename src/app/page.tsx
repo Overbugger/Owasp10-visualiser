@@ -2,12 +2,12 @@
 
 import { OwaspTenAccordion } from "../components/OwaspTenAccordion";
 import { useState } from "react";
-import { useFormState, useFormStatus } from "react-dom";
-import { getAnalysisData, FormState } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
+import { useAnalyze } from "@/hooks/useAnalyze";
+import { useRouter } from "next/navigation";
 
 function isValidGitHubRepoLink(url: string) {
   const githubRepoPattern = /^https:\/\/github\.com\/[\w-]+\/[\w.-]+\.git$/;
@@ -15,7 +15,6 @@ function isValidGitHubRepoLink(url: string) {
 }
 
 function SubmitButton({ loading }: { loading: boolean }) {
-  const { pending } = useFormStatus();
   return (
     <Button
       type="submit"
@@ -36,30 +35,43 @@ function SubmitButton({ loading }: { loading: boolean }) {
 
 export default function Home() {
   const [input, setInput] = useState("");
-  const [state, formAction] = useFormState<FormState, FormData>(
-    getAnalysisData,
-    {
-      message: "",
-    }
-  );
   const [clientError, setClientError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+  const {
+    mutateAsync: analzeGitUrl,
+    isPending: analyzePending,
+    error: analyzeError,
+  } = useAnalyze();
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setClientError("");
-    setIsLoading(true);
 
     if (!isValidGitHubRepoLink(input)) {
       setClientError(
         "Please enter a valid GitHub repository URL ending with .git (e.g., https://github.com/username/repo.git)."
       );
-      setIsLoading(false);
       return;
     }
-    const formData = new FormData(e.currentTarget);
-    formAction(formData);
-    setIsLoading(false);
+
+    const encodedGitUrl = encodeURIComponent(input);
+    router.push(`/visual/${encodedGitUrl}`);
+
+    // try {
+    //   await analzeGitUrl(
+    //     { gitUrl: input, ruleSet: "owasp" },
+    //     {
+    //       onSuccess: (data) => {
+    //         console.log(data);
+    //         // Encode the gitUrl for the URL
+    //         const encodedGitUrl = encodeURIComponent(input);
+    //         router.push(`/visual/${encodedGitUrl}`);
+    //       },
+    //     }
+    //   );
+    // } catch (error) {
+    //   setClientError("Analysis failed. Please try again.");
+    // }
   };
 
   return (
@@ -95,24 +107,18 @@ export default function Home() {
               className="mb-2"
             />
           </div>
-          <SubmitButton loading={isLoading} />
+          <SubmitButton loading={analyzePending} />
         </form>
         {clientError && (
           <Alert variant="destructive" className="mt-2 w-full md:w-1/2">
             <AlertDescription>{clientError}</AlertDescription>
           </Alert>
         )}
-        {state.error && (
+        {analyzeError && (
           <Alert variant="destructive" className="mt-2 w-full md:w-1/2">
-            <AlertDescription>{state.error}</AlertDescription>
-          </Alert>
-        )}
-        {state.message && (
-          <Alert
-            variant="default"
-            className="mt-2 bg-primary/10 text-primary border-primary/20 w-full md:w-1/2"
-          >
-            <AlertDescription>{state.message}</AlertDescription>
+            <AlertDescription>
+              Analysis failed. Please try again.
+            </AlertDescription>
           </Alert>
         )}
       </div>

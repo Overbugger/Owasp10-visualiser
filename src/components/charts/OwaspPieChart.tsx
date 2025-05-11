@@ -1,7 +1,5 @@
 "use client";
 
-import { LabelList, Pie, PieChart } from "recharts";
-
 import {
   Card,
   CardContent,
@@ -9,45 +7,46 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  ChartConfig,
-  ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
-const chartData = [
-  { segment: "High", count: 122, fill: "#C9001E" },
-  { segment: "Medium", count: 38, fill: "#F69C00" },
-  { segment: "Low", count: 1, fill: "#1E2B53" },
-];
+import { ChartContainer } from "@/components/ui/chart";
+import { ChartTooltipContent } from "../ui/chart";
+import { PieChart, Pie, Tooltip, Cell } from "recharts";
+
+interface SeverityCounts {
+  [key: string]: number;
+}
+
+interface Props {
+  data: SeverityCounts;
+}
 
 const chartConfig = {
-  count: {
-    label: "Vulnerabilities",
-  },
-  model: {
+  HIGH: {
+    color: "#C9001E",
     label: "High",
-    color: "hsl(var(--chart-1))",
   },
-  view: {
+  MEDIUM: {
+    color: "#F69C00",
     label: "Medium",
-    color: "hsl(var(--chart-3))",
   },
-  controller: {
+  LOW: {
+    color: "#1E2B53",
     label: "Low",
-    color: "hsl(var(--chart-4))",
   },
-} satisfies ChartConfig;
+};
 
-export function OwaspPieChart() {
+export function OwaspPieChart({ data }: Props) {
+  const chartData = Object.entries(data).map(([severity, count]) => ({
+    name: chartConfig[severity as keyof typeof chartConfig].label,
+    value: count,
+    color: chartConfig[severity as keyof typeof chartConfig].color,
+  }));
+
   return (
     <Card className="flex flex-col">
       <CardHeader className="items-center pb-0">
-        <CardTitle>Severity Chart</CardTitle>
+        <CardTitle>Severity Distribution</CardTitle>
         <CardDescription>
-          Showing the total count of severity metrics
+          Distribution of vulnerabilities by severity
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-1 pb-0">
@@ -56,34 +55,23 @@ export function OwaspPieChart() {
           className="mx-auto aspect-square max-h-[250px]"
         >
           <PieChart>
-            <ChartTooltip
-              content={<ChartTooltipContent nameKey="visitors" hideLabel />}
+            <Tooltip
+              content={<ChartTooltipContent nameKey="value" hideLabel />}
             />
             <Pie
               data={chartData}
-              dataKey="count"
+              dataKey="value"
               labelLine={false}
-              label={({ payload, ...props }) => {
-                return (
-                  <text
-                    cx={props.cx}
-                    cy={props.cy}
-                    x={props.x}
-                    y={props.y}
-                    textAnchor={props.textAnchor}
-                    dominantBaseline={props.dominantBaseline}
-                    fill="hsla(var(--foreground))"
-                  >
-                    {`${payload.count}`}
-                  </text>
-                );
-              }}
-              nameKey="segment"
-            />
-            <ChartLegend
-              content={<ChartLegendContent nameKey="segment" />}
-              className="-translate-y-2 flex-wrap gap-2 [&>*]:basis-1/4 [&>*]:justify-center"
-            />
+              label={({ name, percent }) =>
+                `${name} ${(percent * 100).toFixed(0)}%`
+              }
+              outerRadius={80}
+              fill="var(--chart-primary)"
+            >
+              {chartData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.color} />
+              ))}
+            </Pie>
           </PieChart>
         </ChartContainer>
       </CardContent>
